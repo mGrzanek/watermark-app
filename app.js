@@ -1,8 +1,7 @@
 const Jimp = require('jimp');
 const inquirer = require('inquirer');
-const fs = require('fs');
 
-const addTextWatermarkToImage = async function(inputFile, outputFile, text) {
+const addTextWatermarkToImage = async (inputFile, outputFile, text) => {
     try {
         const image = await Jimp.read(inputFile);
         const font = await Jimp.loadFont(Jimp.FONT_SANS_64_BLACK);
@@ -16,12 +15,11 @@ const addTextWatermarkToImage = async function(inputFile, outputFile, text) {
         console.log('Watermark has been added!');
         startApp();
     } catch (error) {
-        console.log(error);
+        console.log('Something went wrong... Try again.');
     }
-    
 };
 
-const addImageWatermarkToImage = async function(inputFile, outputFile, watermarkFile) {
+const addImageWatermarkToImage = async (inputFile, outputFile, watermarkFile) => {
     try {
         const image = await Jimp.read(inputFile);
         const watermark = await Jimp.read(watermarkFile);
@@ -36,14 +34,62 @@ const addImageWatermarkToImage = async function(inputFile, outputFile, watermark
         console.log('Watermark has been added!');
         startApp();
     } catch (error) {
-        console.log(error);
+        console.log('Something went wrong... Try again.');
     }  
 };
 
 const prepareOutputFilename = (filename) => {
     const [ name, ext ] = filename.split('.');
     return `${name}-with-watermark.${ext}`;
-}
+};
+
+const makeImageBrighter = async (inputFile) => {
+    try {
+        const image = await Jimp.read(inputFile);
+        image.brightness(0.2);
+        await image.quality(100).writeAsync(inputFile);
+        console.log('Success! Image has been brightened.');
+    } catch(error) {
+        console.log('Something went wrong... Try again.');
+        process.exit();
+    }
+};
+
+const increaseContrast = async (inputFile) => {
+    try {
+        const image = await Jimp.read(inputFile);
+        image.contrast(.4);
+        await image.quality(100).writeAsync(inputFile);
+        console.log('Success! Contrast has been added to the image.');
+    } catch(error) {
+        console.log('Something went wrong... Try again.');
+        process.exit();
+    }
+};
+
+const makeImageBlackAndWhite = async (inputFile) => {
+    try {
+        const image = await Jimp.read(inputFile);
+        image.grayscale();
+        await image.quality(100).writeAsync(inputFile);
+        console.log('Success! Gray colors added.');
+    } catch(error) {
+        console.log('Something went wrong... Try again.');
+        process.exit();
+    }
+};
+
+const invertImage = async (inputFile) => {
+    try {
+        const image = await Jimp.read(inputFile);
+        image.flip(true, false);
+        await image.quality(100).writeAsync(inputFile);
+        console.log('Success! The image has been inverted.');
+    } catch(error) {
+        console.log('Something went wrong... Try again.');
+        process.exit();
+    }
+};
 
 const startApp  = async () => {
     const answer = await inquirer.prompt([{
@@ -54,17 +100,58 @@ const startApp  = async () => {
   
     if(!answer.start) process.exit();
   
+    const file = await inquirer.prompt([
+        {
+            name: 'inputImage',
+            type: 'input',
+            message: 'What file do you want to mark?',
+            default: 'test.jpg',
+        }
+    ]);
+
+    let editImageActive = true;
+
+    while(editImageActive){
+        const addImageToEdit = await inquirer.prompt([
+            {
+                name: 'editImage',
+                type: 'confirm',
+                message: 'Would you like to edit this file?'
+            }
+        ]);
+
+        if(!addImageToEdit.editImage) {
+            editImageActive = false;
+            break;
+        } 
+        
+        const editOptions = await inquirer.prompt([
+            {
+                name: 'selectionOfEditOptions',
+                type: 'list',
+                message: 'Select edit option',
+                choices: ['Make image brighter', 'Increase contrast', 'Make image b&w', 'Invert image']
+            }
+        ]);
+
+        if(editOptions.selectionOfEditOptions === 'Make image brighter'){
+            await makeImageBrighter(`./images/${file.inputImage}`);
+        } else if(editOptions.selectionOfEditOptions === 'Increase contrast'){
+            await increaseContrast(`./images/${file.inputImage}`);
+        } else if(editOptions.selectionOfEditOptions === 'Make image b&w'){
+            await makeImageBlackAndWhite(`./images/${file.inputImage}`);
+        } else {
+            await invertImage(`./images/${file.inputImage}`);
+        }     
+    }
+
     const options = await inquirer.prompt([{
-        name: 'inputImage',
-        type: 'input',
-        message: 'What file do you want to mark?',
-        default: 'test.jpg',
-    }, {
         name: 'watermarkType',
+        message: 'Select watermark type:',
         type: 'list',
         choices: ['Text watermark', 'Image watermark'],
     }]);
-    
+
     if(options.watermarkType === 'Text watermark') {
         const text = await inquirer.prompt([{
             name: 'value',
@@ -72,32 +159,28 @@ const startApp  = async () => {
             message: 'Type your watermark text:',
         }]);
         options.watermarkText = text.value;
-        if(fs.existsSync(`./images/${options.inputImage}`)) {
-            addTextWatermarkToImage(
-                `./images/${options.inputImage}`, 
-                `./images/${prepareOutputFilename(options.inputImage)}`, 
-                options.watermarkText
-            ); 
-        } else {
-            console.log('Something went wrong... Try again.');
-        }
+
+        addTextWatermarkToImage(
+            `./images/${file.inputImage}`, 
+            `./images/${prepareOutputFilename(file.inputImage)}`, 
+            options.watermarkText
+        ); 
+
     } else {
         const image = await inquirer.prompt([{
             name: 'filename',
             type: 'input',
-            message: 'Type your watermark name:',
+            message: 'Type your watermark filename:',
             default: 'logo.png',
         }]);
+
         options.watermarkImage = image.filename;
-        if(fs.existsSync(`./images/${options.inputImage}`) && fs.existsSync(`./images/${options.watermarkImage}`)) {
-            addImageWatermarkToImage(
-                `./images/${options.inputImage}`, 
-                `./images/${prepareOutputFilename(options.inputImage)}`, 
-                `./images/${options.watermarkImage}`
-            );
-        } else {
-            console.log('Something went wrong... Try again.');
-        }
+
+        addImageWatermarkToImage(
+            `./images/${file.inputImage}`, 
+            `./images/${prepareOutputFilename(file.inputImage)}`, 
+            `./images/${options.watermarkImage}`
+        );
     }
 }
 
