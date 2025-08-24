@@ -109,9 +109,9 @@ const startApp  = async () => {
         }
     ]);
 
-    let editImageActive = true;
+    //let editImageActive = true;
 
-    while(editImageActive){
+    while(true){
         const addImageToEdit = await inquirer.prompt([
             {
                 name: 'editImage',
@@ -121,7 +121,6 @@ const startApp  = async () => {
         ]);
 
         if(!addImageToEdit.editImage) {
-            editImageActive = false;
             break;
         } 
         
